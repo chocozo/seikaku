@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Values & Career - 性格・進路診断</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kiwi Maru', serif;
+            background: linear-gradient(135deg, #fef9ff 0%, #f0f4ff 100%);
+            min-height: 100vh;
+        }
+        .card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            perspective: 1000px;
+        }
+        .card:active {
+            transform: scale(0.95);
+        }
+        .card.selected {
+            background: #ffcfdf !important;
+            border-color: #ff85a1 !important;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(255, 133, 161, 0.2);
+        }
+        .pastel-btn {
+            background: #b2ebf2;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 #81d4fa;
+        }
+        .pastel-btn:hover {
+            background: #81d4fa;
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #4fc3f7;
+        }
+        .pastel-btn:disabled {
+            background: #e0e0e0;
+            box-shadow: 0 4px 0 #bdbdbd;
+            cursor: not-allowed;
+        }
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="app" class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-700 mb-2">✨ 価値観・キャリア診断</h1>
+            <p class="text-gray-500 font-medium">今のあなたが大切にしたい言葉を「5つ」選んでね</p>
+            <div id="selection-counter" class="mt-4 inline-block px-4 py-1 bg-white rounded-full border border-pink-200 text-pink-500 font-bold">
+                選択済み: <span id="count">0</span> / 5
+            </div>
+        </header>
+
+        <!-- Main Screen -->
+        <div id="main-screen">
+            <div id="card-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-3 mb-8">
+                <!-- Cards will be injected here by JS -->
+            </div>
+
+            <div class="text-center">
+                <button id="diagnose-btn" disabled onclick="showResult()" class="pastel-btn text-gray-700 font-bold py-4 px-12 rounded-full text-xl">
+                    結果を見る
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden fade-in">
+            <div class="bg-white rounded-3xl p-6 md:p-10 shadow-xl border-4 border-dashed border-blue-100">
+                <div class="text-center mb-6">
+                    <span class="text-pink-400 text-sm font-bold tracking-widest uppercase">Your Analysis</span>
+                    <h2 class="text-2xl md:text-4xl font-bold text-gray-800 mt-2">あなたの「未来のカタチ」</h2>
+                </div>
+
+                <!-- NEW: Personality Analysis Section -->
+                <div class="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-100">
+                    <h3 class="text-purple-600 font-bold text-lg mb-3 flex items-center">
+                        🔍 あなたはこんな人かも？
+                    </h3>
+                    <p id="personality-text" class="text-gray-700 leading-relaxed text-lg"></p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Academic System -->
+                    <div class="bg-blue-50 rounded-2xl p-6 border border-blue-100">
+                        <h3 class="text-blue-600 font-bold text-lg mb-4 flex items-center">
+                            📖 向いている学問系統
+                        </h3>
+                        <div id="academic-result" class="text-2xl font-bold text-gray-800 mb-4"></div>
+                        <p id="academic-desc" class="text-gray-600 leading-relaxed"></p>
+                    </div>
+
+                    <!-- Career -->
+                    <div class="bg-pink-50 rounded-2xl p-6 border border-pink-100">
+                        <h3 class="text-pink-600 font-bold text-lg mb-4 flex items-center">
+                            💼 向いている職業の例
+                        </h3>
+                        <ul id="job-list" class="space-y-2">
+                            <!-- Jobs will be injected -->
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mt-8 p-6 bg-gray-50 rounded-2xl text-center">
+                    <h4 class="font-bold text-gray-700 mb-2">💡 あなたのキーワード</h4>
+                    <p id="trait-summary" class="text-gray-500 text-sm italic"></p>
+                </div>
+
+                <div class="text-center mt-10">
+                    <button onclick="resetApp()" class="text-gray-400 hover:text-gray-600 underline">
+                        もう一度診断する
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // カードデータ
+        // traits: [0:論理(理系), 1:人間(文系), 2:創造(実技), 3:規律(安定), 4:変化(挑戦)]
+        const cardData = [
+            { id: 1, name: "謙虚", sub: "できるのにいばらない", traits: [0, 2, 0, 4, 0] },
+            { id: 2, name: "表現", sub: "思いを形にする", traits: [0, 0, 5, 0, 3] },
+            { id: 3, name: "創造", sub: "つくりだすこと", traits: [1, 0, 5, 0, 4] },
+            { id: 4, name: "勇気", sub: "それでも立ち向かう力", traits: [0, 0, 0, 0, 5] },
+            { id: 5, name: "義務", sub: "やるべきこと", traits: [0, 1, 0, 5, 0] },
+            { id: 6, name: "慎重", sub: "用心深い", traits: [4, 0, 0, 5, 0] },
+            { id: 7, name: "自由", sub: "おもいのままに", traits: [0, 0, 2, 0, 5] },
+            { id: 8, name: "情熱", sub: "燃える思い", traits: [0, 0, 1, 0, 5] },
+            { id: 9, name: "信念", sub: "ブレない気持ち", traits: [0, 1, 0, 5, 0] },
+            { id: 10, name: "正確性", sub: "確かさ", traits: [5, 0, 0, 4, 0] },
+            { id: 11, name: "権力", sub: "人の上に立つ力", traits: [0, 3, 0, 1, 3] },
+            { id: 12, name: "平穏", sub: "何ごともない幸せ", traits: [0, 1, 0, 5, 0] },
+            { id: 13, name: "独立", sub: "ひとりだち", traits: [2, 0, 1, 1, 4] },
+            { id: 14, name: "好奇心", sub: "知りたい気持ち", traits: [4, 1, 1, 0, 4] },
+            { id: 15, name: "貢献", sub: "世のため人のために", traits: [0, 5, 0, 2, 1] },
+            { id: 16, name: "工夫", sub: "よい方法を考える", traits: [4, 0, 3, 1, 2] },
+            { id: 17, name: "協働", sub: "みんなで助け合って", traits: [0, 5, 0, 2, 1] },
+            { id: 18, name: "快適さ", sub: "ここちよさ", traits: [0, 1, 2, 4, 0] },
+            { id: 19, name: "美", sub: "美しいもの", traits: [0, 0, 5, 2, 1] },
+            { id: 20, name: "礼儀", sub: "人としての振る舞い", traits: [0, 3, 0, 5, 0] },
+            { id: 21, name: "熱中", sub: "ねてもさめても", traits: [3, 0, 3, 0, 3] },
+            { id: 22, name: "信頼", sub: "うたがわない", traits: [0, 4, 0, 4, 0] },
+            { id: 23, name: "達成", sub: "やりとげる", traits: [2, 1, 0, 3, 3] },
+            { id: 24, name: "公平", sub: "えこひいきなし", traits: [1, 4, 0, 4, 0] },
+            { id: 25, name: "努力", sub: "がんばる力", traits: [1, 1, 0, 5, 1] },
+            { id: 26, name: "名声", sub: "有名人", traits: [0, 1, 2, 0, 4] },
+            { id: 27, name: "道徳", sub: "ひとのみち", traits: [0, 5, 0, 4, 0] },
+            { id: 28, name: "ユーモア", sub: "楽しませる", traits: [0, 2, 4, 0, 3] },
+            { id: 29, name: "思いやり", sub: "あなたも大事", traits: [0, 5, 0, 1, 1] },
+            { id: 30, name: "安心", sub: "落ち着く", traits: [0, 2, 0, 5, 0] },
+            { id: 31, name: "友情", sub: "友を思う心", traits: [0, 5, 0, 1, 1] },
+            { id: 32, name: "挑戦", sub: "チャレンジする", traits: [2, 0, 2, 0, 5] },
+            { id: 33, name: "勝利", sub: "勝ち取る", traits: [2, 1, 1, 1, 5] },
+            { id: 34, name: "現実的", sub: "できる感じ", traits: [4, 1, 0, 4, 0] },
+            { id: 35, name: "責任", sub: "まかせてください", traits: [1, 4, 0, 5, 0] }
+        ];
+
+        const systems = [
+            { name: "工学系統", type: "理系", desc: "モノづくりの論理と技術を追求します。便利な仕組みや新しい製品を開発する力が活かせます。", jobs: ["機械エンジニア", "システム開発者", "建築士", "ロボット研究者"], match: (s) => s[0] > 7 && s[2] > 6 },
+            { name: "理学系統", type: "理系", desc: "自然界の法則を解き明かす分野です。「なぜ？」を追求する探求心が、科学の発展に貢献します。", jobs: ["研究員", "気象予報士", "データサイエンティスト", "数学者"], match: (s) => s[0] > 10 },
+            { name: "農学系統", type: "理系", desc: "生命や食、環境について学びます。自然と共生し、持続可能な未来を作る分野です。", jobs: ["農業技師", "食品開発者", "獣医師", "環境コンサルタント"], match: (s) => s[0] > 6 && s[3] > 6 },
+            { name: "医療・保健学系統", type: "理系", desc: "人の命と健康を支えます。高い専門知識と、他者を思う献身的な心が求められます。", jobs: ["医師", "看護師", "薬剤師", "作業療法士"], match: (s) => s[0] > 5 && s[1] > 7 },
+            { name: "社会科学系統", type: "文系", desc: "社会の仕組み（法・経済・政治）を整えます。ルールの中で最適解を見つける力が活きます。", jobs: ["弁護士", "経営者", "公認会計士", "行政官"], match: (s) => s[1] > 10 && s[3] > 6 },
+            { name: "人文科学系統", type: "文系", desc: "言葉、歴史、文化、心を探求します。多角的な視点で「人間とは何か」を見つめる仕事です。", jobs: ["カウンセラー", "翻訳家", "編集者", "学芸員"], match: (s) => s[1] > 10 },
+            { name: "教育系統", type: "文理融合", desc: "人の成長に関わります。知識を伝えるだけでなく、誰かの可能性を引き出す力が必要です。", jobs: ["学校の先生", "教育プランナー", "スポーツコーチ"], match: (s) => s[1] > 8 && s[4] > 6 },
+            { name: "芸術系統", type: "実技系", desc: "感性を形にし、新しい価値を生みます。独自の表現力で、人々に感動や驚きを与えます。", jobs: ["デザイナー", "映像クリエイター", "イラストレーター", "音楽家"], match: (s) => s[2] > 10 },
+            { name: "家政・生活科学系統", type: "文理融合", desc: "暮らしの質を向上させます。生活に密着した視点から、健やかな毎日をサポートします。", jobs: ["管理栄養士", "商品企画", "保育士", "インテリアデザイナー"], match: (s) => s[3] > 8 && s[2] > 5 },
+            { name: "教養・総合科学系統", type: "文理融合", desc: "既存の枠を超えて多様な課題に取り組みます。広い視野と柔軟な思考力が最大の武器です。", jobs: ["企画プランナー", "国際協力スタッフ", "ライター"], match: (s) => true }
+        ];
+
+        let selectedIds = [];
+
+        function initCards() {
+            const grid = document.getElementById('card-grid');
+            cardData.forEach(card => {
+                const el = document.createElement('div');
+                el.className = 'card bg-white border-2 border-gray-100 rounded-xl p-3 text-center cursor-pointer shadow-sm hover:border-pink-200';
+                el.innerHTML = `
+                    <div class="font-bold text-gray-700 text-sm md:text-base">${card.name}</div>
+                    <div class="text-[10px] text-gray-400 mt-1 leading-tight">${card.sub}</div>
+                `;
+                el.onclick = () => toggleCard(card.id, el);
+                grid.appendChild(el);
+            });
+        }
+
+        function toggleCard(id, el) {
+            const index = selectedIds.indexOf(id);
+            if (index > -1) {
+                selectedIds.splice(index, 1);
+                el.classList.remove('selected');
+            } else {
+                if (selectedIds.length >= 5) return;
+                selectedIds.push(id);
+                el.classList.add('selected');
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('count').innerText = selectedIds.length;
+            const btn = document.getElementById('diagnose-btn');
+            btn.disabled = selectedIds.length !== 5;
+            
+            const counter = document.getElementById('selection-counter');
+            if (selectedIds.length === 5) {
+                counter.classList.replace('bg-white', 'bg-pink-500');
+                counter.classList.replace('text-pink-500', 'text-white');
+            } else {
+                counter.classList.replace('bg-pink-500', 'bg-white');
+                counter.classList.replace('text-white', 'text-pink-500');
+            }
+        }
+
+        function generatePersonalityAnalysis(scores) {
+            // scores: [論理, 人間, 創造, 規律, 変化]
+            let analysis = "";
+            const maxScore = Math.max(...scores);
+            const index = scores.indexOf(maxScore);
+
+            // 性格分析のテキスト分岐
+            if (scores[0] >= 12) {
+                analysis = "あなたは非常に分析力が高く、物事を論理的に整理するのが得意な「ロジカル・ナビゲーター」タイプです。根拠を大切にし、複雑な問題も一歩ずつ解決できる冷静さを持っています。";
+            } else if (scores[1] >= 12) {
+                analysis = "あなたは人の気持ちに寄り添い、調和を大切にする「ハートフル・コネクター」タイプです。思いやりが深く、チームや社会の中で誰かの役に立つことに大きな喜びを感じる性格です。";
+            } else if (scores[2] >= 12) {
+                analysis = "あなたは豊かな感性と独自の視点を持つ「クリエイティブ・メーカー」タイプです。既成概念にとらわれず、自分らしい方法で新しい価値や美しさを表現することに長けています。";
+            } else if (scores[3] >= 12) {
+                analysis = "あなたは誠実で責任感が強く、地道な努力を惜しまない「ステディ・サポーター」タイプです。規律や約束を守り、周囲から厚い信頼を寄せられる、社会の基盤を支えるような存在です。";
+            } else if (scores[4] >= 12) {
+                analysis = "あなたは好奇心旺盛で、未知の世界に飛び込む勇気を持った「アドベンチャー・シーカー」タイプです。変化を恐れず、常に自分をアップデートし続けるエネルギッシュな性格です。";
+            } else {
+                analysis = "あなたは多様な価値観をバランスよく持った「マルチ・ポテンシャライト」タイプです。状況に合わせて自分の役割を柔軟に変えることができ、広い視野で物事を見極める力があります。";
+            }
+            return analysis;
+        }
+
+        function showResult() {
+            let totalScores = [0, 0, 0, 0, 0];
+            const names = [];
+            selectedIds.forEach(id => {
+                const card = cardData.find(c => c.id === id);
+                names.push(card.name);
+                for(let i=0; i<5; i++) {
+                    totalScores[i] += card.traits[i];
+                }
+            });
+
+            // 性格分析の表示
+            document.getElementById('personality-text').innerText = generatePersonalityAnalysis(totalScores);
+
+            // 系統の判定
+            const resultSystem = systems.find(sys => sys.match(totalScores));
+
+            document.getElementById('main-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            document.getElementById('academic-result').innerText = resultSystem.name;
+            document.getElementById('academic-desc').innerText = resultSystem.desc;
+            
+            const jobList = document.getElementById('job-list');
+            jobList.innerHTML = '';
+            resultSystem.jobs.forEach(job => {
+                const li = document.createElement('li');
+                li.className = 'bg-white rounded-lg p-2 shadow-sm text-gray-700 font-medium border-l-4 border-pink-300';
+                li.innerText = job;
+                jobList.appendChild(li);
+            });
+
+            document.getElementById('trait-summary').innerText = names.join(' ・ ');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetApp() {
+            selectedIds = [];
+            document.querySelectorAll('.card').forEach(el => el.classList.remove('selected'));
+            updateUI();
+            document.getElementById('main-screen').classList.remove('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.onload = initCards;
+    </script>
+</body>
+</html>
